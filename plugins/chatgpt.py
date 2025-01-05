@@ -1,48 +1,46 @@
-import traceback
-from config import BANNED_USERS
 from pyrogram import filters
 from pyrogram.enums import ChatAction
-from TheApi import api
+
 from YukkiMusic import app
+from config import BANNED_USERS
 
-@app.on_message(filters.command(["chatgpt", "ai", "ask"]) & ~BANNED_USERS)
+import openai  # اضافه کردن کتابخانه OpenAI
+openai.api_key = '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'  # کلید API خود را اینجا قرار دهید
+
+@app.on_message(filters.command(["chatgpt", "هوش مصنوعی", "سوال"], prefixes=['', '/']) & ~BANNED_USERS)
 async def chatgpt_chat(bot, message):
+    if len(message.command) < 2 and not message.reply_to_message:
+        await message.reply_text(
+            "❓ نمونه استفاده:\n\n`/chatgpt چگونه از حساب خود حفاظت کنیم؟`"
+        )
+        return
+
+    if message.reply_to_message and message.reply_to_message.text:
+        user_input = message.reply_to_message.text
+    else:
+        user_input = " ".join(message.command[1:])
+
+    await bot.send_chat_action(message.chat.id, ChatAction.TYPING)
+
     try:
-        print("دستور دریافت شد.")  # دیباگ: تایید دریافت پیام
-
-        # بررسی ورودی
-        if len(message.command) < 2 and not message.reply_to_message:
-            await message.reply_text(
-                "مثال استفاده:\n\n/ai توضیحی درباره هوش مصنوعی بده."
-            )
-            print("ورودی کافی نبود.")  # دیباگ: ورودی خالی
-            return
-
-        # گرفتن ورودی
-        if message.reply_to_message and message.reply_to_message.text:
-            user_input = message.reply_to_message.text
-        else:
-            user_input = " ".join(message.command[1:])
-        print(f"ورودی کاربر: {user_input}")  # دیباگ: نمایش ورودی کاربر
-
-        # نشان دادن حالت تایپینگ
-        await bot.send_chat_action(message.chat.id, ChatAction.TYPING)
-        print("حالت تایپینگ ارسال شد.")  # دیباگ: تایید ارسال تایپینگ
-
-        # فراخوانی API
-        results = api.chatgpt(user_input)
-        print(f"پاسخ API: {results}")  # دیباگ: نمایش پاسخ API
-
-        # بررسی و ارسال پاسخ
-        if not results:
-            await message.reply_text("پاسخی از هوش مصنوعی دریافت نشد.")
-            print("پاسخی از API دریافت نشد.")  # دیباگ: پاسخ خالی
-        else:
-            await message.reply_text(results)
-            print("پاسخ به کاربر ارسال شد.")  # دیباگ: تایید ارسال پاسخ
-
+        # ایجاد پیام‌های گفتگو
+        messages = [
+            {"role": "system", "content": "You are an intelligent assistant."},
+            {"role": "user", "content": user_input},
+        ]
+        # درخواست به OpenAI
+        chat = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=messages
+        )
+        reply = chat.choices[0].message.content
+        await message.reply_text(reply)
     except Exception as e:
-        # چاپ جزئیات خطا
-        error_details = traceback.format_exc()
-        print(f"خطای کامل:\n{error_details}")
-        await message.reply_text("یک خطا هنگام پردازش درخواست شما رخ داد.")
+        await message.reply_text(f"⚠️ خطا در پردازش درخواست: {e}")
+
+# __MODULE__ = "چت جی‌پی‌تی 🤖"
+# __HELP__ = """
+# 📝 دستورات:
+# /chatgpt [دستور] - سوال خود را از هوش مصنوعی بپرسید.
+# /سوال [دستور] - سوال خود را بپرسید.
+# """
