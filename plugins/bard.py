@@ -9,24 +9,21 @@ async def love_command(client, message):
 
     # چک کردن وارد شدن دقیقاً دو آرگومان
     if len(args) != 2:
-        await message.delete()  # هیچ پاسخی نمی‌دهد
-        return
+        return  # اگر تعداد آرگومان‌ها نادرست است، هیچ کاری انجام نمی‌دهد
 
     name1 = args[0].strip()
     name2 = args[1].strip()
 
     # بررسی صحت یوزرنیم یا آی‌دی عددی
     if not (is_valid_username_or_id(name1) and is_valid_username_or_id(name2)):
-        await message.delete()  # هیچ پاسخی نمی‌دهد
-        return
+        return  # اگر ورودی نامعتبر است، هیچ کاری انجام نمی‌دهد
 
     # دریافت اطلاعات کاربران
     try:
         user1 = await client.get_users(name1)
         user2 = await client.get_users(name2)
     except:
-        await message.delete()  # اگر کاربر نامعتبر باشد، پاسخی نمی‌دهد
-        return
+        return  # اگر کاربران وجود ندارند یا ورودی اشتباه است، هیچ کاری انجام نمی‌دهد
 
     # محاسبه درصد عشق
     love_percentage = random.randint(10, 100)
@@ -46,9 +43,8 @@ async def love_command(client, message):
 
 ✨ باور داشته باشید که عشق همیشه راهی پیدا می‌کند! 🌟
 """
-    # ارسال پاسخ و حذف پیام کاربر
+    # ارسال پاسخ
     await client.send_message(chat_id=message.chat.id, text=response)
-    await message.delete()
 
 # تولید پیام‌های تصادفی عاشقانه بر اساس درصد
 def get_random_message(love_percentage):
