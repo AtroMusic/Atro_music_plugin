@@ -1,7 +1,8 @@
 import os
-from pyrogram import filters
-from pyrogram.enums import ChatType
+
+from pyrogram import enums, filters
 from pyrogram.types import Message
+
 from YukkiMusic import app
 from YukkiMusic.misc import SUDOERS
 from YukkiMusic.utils.database import is_gbanned_user
@@ -9,17 +10,27 @@ from YukkiMusic.utils.database import is_gbanned_user
 n = "\n"
 w = " "
 
+
 def bold(x):
-    return f"{x}"
+    return f"**{x}:** "
+
 
 def bold_ul(x):
-    return f"✨ {x} ✨"
+    return f"**--{x}:**-- "
+
 
 def mono(x):
-    return f"{x}{n}"
+    return f"`{x}`{n}"
 
-def section(title: str, body: dict, indent: int = 2, underline: bool = False) -> str:
+
+def section(
+    title: str,
+    body: dict,
+    indent: int = 2,
+    underline: bool = False,
+) -> str:
     text = (bold_ul(title) + n) if underline else bold(title) + n
+
     for key, value in body.items():
         if value is not None:
             text += (
@@ -33,131 +44,145 @@ def section(title: str, body: dict, indent: int = 2, underline: bool = False) ->
             )
     return text
 
+
 async def userstatus(user_id):
     try:
         user = await app.get_users(user_id)
         x = user.status
         if x == enums.UserStatus.RECENTLY:
-            return "🟢 به‌تازگی آنلاین شده است."
+            return "Recently."
         elif x == enums.UserStatus.LAST_WEEK:
-            return "🕒 آخرین بازدید: هفته گذشته."
+            return "Last week."
         elif x == enums.UserStatus.LONG_AGO:
-            return "📅 آخرین بازدید: مدت زمان طولانی پیش."
+            return "Long time ago."
         elif x == enums.UserStatus.OFFLINE:
-            return "🔘 آفلاین."
+            return "Offline."
         elif x == enums.UserStatus.ONLINE:
-            return "🟢 آنلاین."
-    except Exception:
-        return "⚠️ خطا: مشکلی رخ داده است. لطفاً دوباره تلاش کنید!"
+            return "Online."
+    except BaseException:
+        return "**یک مشکلی رخ داده !**"
+
 
 async def get_user_info(user, already=False):
     if not already:
         user = await app.get_users(user)
     if not user.first_name:
-        return ["❌ حساب کاربری حذف شده است.", None]
+        return ["Deleted account", None]
     user_id = user.id
     online = await userstatus(user_id)
     username = user.username
     first_name = user.first_name
-    mention = user.mention("🌐 لینک پروفایل")
+    mention = user.mention("Link")
     dc_id = user.dc_id
     photo_id = user.photo.big_file_id if user.photo else None
     is_gbanned = await is_gbanned_user(user_id)
     is_sudo = user_id in SUDOERS
-    is_premium = "💎 دارد" if user.is_premium else "❌ ندارد"
-
+    is_premium = user.is_premium
     body = {
-        "👤 نام:": [first_name],
-        "🌐 نام کاربری:": [f"@{username}" if username else "🔸 مشخص نشده"],
-        "🆔 شناسه کاربری:": user_id,
-        "📍 شماره دیتاسنتر:": dc_id,
-        "🔗 لینک:": [mention],
-        "💎 حساب پریمیوم:": is_premium,
-        "⏱️ آخرین بازدید:": online,
+        "نام": [first_name],
+        "نام کاربری": [("@" + username) if username else "Null"],
+        "ایدی": user_id,
+        "ایدی دیتا سنتر": dc_id,
+        "ذکر شده": [mention],
+        "پریمیوم": is_premium,
+        "آخرین بازدید": online,
     }
-    caption = section("✨ اطلاعات کامل کاربر ✨", body)
+    caption = section("مشخصات کاربری", body)
     return [caption, photo_id]
+
 
 async def get_chat_info(chat):
     chat = await app.get_chat(chat)
     username = chat.username
-    link = f"🌐 لینک به گروه (https://t.me/{username})" if username else "🔸 مشخص نشده"
+    link = f"[Link](t.me/{username})" if username else "Null"
     photo_id = chat.photo.big_file_id if chat.photo else None
-
     info = f"""
-✨ اطلاعات کامل گروه/چت ✨
+❅─────✧❅✦❅✧─────❅
+             ✦ مشخصات چت ✦
 
-🆔 شناسه چت: {chat.id}
-👥 نام گروه/چت: {chat.title}
-🌐 نام کاربری: {chat.username if chat.username else "🔸 مشخص نشده"}
-📍 شماره دیتاسنتر: {chat.dc_id}
-📝 توضیحات: {chat.description if chat.description else "🔸 ثبت نشده"}
-📊 نوع چت: {chat.type}
-✔️ تایید شده: {"✅ بله" if chat.is_verified else "❌ خیر"}
-🚫 محدود شده: {"✅ بله" if chat.is_restricted else "❌ خیر"}
-👑 سازنده گروه: {"✅ بله" if chat.is_creator else "❌ خیر"}
-⚠️ کلاه‌برداری: {"✅ بله" if chat.is_scam else "❌ خیر"}
-❌ جعلی: {"✅ بله" if chat.is_fake else "❌ خیر"}
-👥 تعداد اعضا: {chat.members_count if chat.members_count else "🔸 نامشخص"}
-لینک: {link}
-──────────────────────
-"""
+➻ آیدی چت ‣ {chat.id}  
+➻ نام ‣ {chat.title}  
+➻ نام کاربری ‣ {chat.username}  
+➻ آیدی دیتا سنتر ‣ {chat.dc_id}  
+➻ توضیحات ‣ {chat.description}  
+➻ نوع چت ‣ {chat.type}  
+➻ تایید شده است ‣ {chat.is_verified}  
+➻ محدود شده است ‣ {chat.is_restricted}  
+➻ سازنده است ‣ {chat.is_creator}  
+➻ کلاه‌برداری است ‣ {chat.is_scam}  
+➻ جعلی است ‣ {chat.is_fake}  
+➻ تعداد اعضا ‣ {chat.members_count}  
+➻ لینک ‣ {link}
+
+
+
+❅─────✧❅✦❅✧─────❅"""
+
     return info, photo_id
 
-@app.on_message(filters.command(["info", "ایدی", "id", "آیدی"], prefixes=["", "/"]))
-async def info_func(_, message: Message):
-    # چک کردن نوع چت
-    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
-        return await message.reply_text("⚠️ این دستور فقط در گروه‌ها قابل اجراست.")
 
-    # پردازش شناسه کاربری
+@app.on_message(filters.command(["info","مشخصات","درباره","معلومات"],prefixes=['','/']))
+async def info_func(_, message: Message):
     if message.reply_to_message:
         user = message.reply_to_message.from_user.id
-    elif len(message.command) == 1:
+    elif not message.reply_to_message and len(message.command) == 1:
         user = message.from_user.id
-    else:
+    elif not message.reply_to_message and len(message.command) != 1:
         user_input = message.text.split(None, 1)[1]
         if user_input.isdigit():
             user = int(user_input)
         elif user_input.startswith("@"):
             user = user_input
         else:
-            return await message.reply_text("⚠️ لطفاً شناسه یا نام کاربری معتبر وارد کنید.")
+            return await message.reply_text(
+                "لطفا یک آیدی یک کاربر را بده یا نام کاربری را بفرست و یا اینکه به یک پیام ریپلای بزن تا مشخصاتش را بفرستم"
+            )
 
-    m = await message.reply_text("⏳ در حال پردازش...")
+    m = await message.reply_text("در حال پروسس...")
+
     try:
         info_caption, photo_id = await get_user_info(user)
     except Exception as e:
-        return await m.edit(f"⚠️ خطا: {e}")
+        return await m.edit(str(e))
 
     if not photo_id:
         return await m.edit(info_caption, disable_web_page_preview=True)
-
     photo = await app.download_media(photo_id)
+
     await message.reply_photo(photo, caption=info_caption, quote=False)
     await m.delete()
     os.remove(photo)
 
-@app.on_message(filters.command(["chatinfo", "چت ایدی"], prefixes=["", "/"]))
+
+@app.on_message(filters.command(["chatinfo","چت","مشخصات چت"],prefixes=['','/']))
 async def chat_info_func(_, message: Message):
-    # چک کردن نوع چت
-    if message.chat.type not in [ChatType.GROUP, ChatType.SUPERGROUP]:
-        return await message.reply_text("⚠️ این دستور فقط در گروه‌ها قابل اجراست.")
-
-    # دریافت اطلاعات چت
-    chat = message.chat.id
-    if len(message.text.split()) > 1:
-        chat = message.text.split(None, 1)[1]
-
+    splited = message.text.split()
+    if len(splited) == 1:
+        chat = message.chat.id
+        if chat == message.from_user.id:
+            return await message.reply_text("**طرز کار:**/چت [نام کاربری|ایدی]")
+    else:
+        chat = splited[1]
     try:
-        m = await message.reply_text("⏳ در حال پردازش...")
+        m = await message.reply_text("درحال پروسس . . .")
+
         info_caption, photo_id = await get_chat_info(chat)
         if not photo_id:
             return await m.edit(info_caption, disable_web_page_preview=True)
 
         photo = await app.download_media(photo_id)
         await message.reply_photo(photo, caption=info_caption, quote=False)
+
         await m.delete()
         os.remove(photo)
     except Exception as e:
-        await m.edit(f"⚠️ خطا: {e}")
+        await m.edit(e)
+
+
+__MODULE__ = "مشخصات"
+__HELP__ = """
+**اطلاعات کاربر و چت:**
+
+• `/info`: دریافت اطلاعات درباره کاربر. نام کاربری، شناسه و بیشتر.
+• `/chatinfo [نام‌کاربری|شناسه]`: دریافت اطلاعات درباره چت. تعداد اعضا، وضعیت تأیید، لینک دعوت و بیشتر.
+"""
