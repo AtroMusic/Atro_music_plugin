@@ -105,7 +105,7 @@ async def process_message(chat: Chat, user_id: int, raw_text: str):
         text, keyb = extract_text_and_keyb(ikb, raw_text)
         return text, keyb
     async def send_message(chat: Chat, text: str, file_id: str, keyb, message_type: str):
-    """ارسال پیام خوش‌آمدگویی یا خداحافظی."""
+        """ارسال پیام خوش‌آمدگویی یا خداحافظی."""
     if message_type == "Text":
         await app.send_message(
             chat.id,
