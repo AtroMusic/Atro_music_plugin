@@ -1,105 +1,61 @@
 import datetime
-from pyrogram import filters
-from pyrogram.enums import ChatMemberStatus as CMS
-from pyrogram.types import (
-    Chat,
-    ChatMemberUpdated,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
-from YukkiMusic import app
-from utils.database import set_welcome, get_welcome, del_welcome
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ChatMemberUpdated
+from pyrogram.errors import ChatAdminRequired
 
-
-async def send_welcome_message(chat: Chat, user):
-    """ارسال پیام خوش‌آمدگویی برای کاربر جدید."""
-    welcome_data = await get_welcome(chat.id)
-    if not welcome_data:
-        return
-
-    raw_text, file_id = welcome_data
-    date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    text = raw_text.replace("{USER}", user.mention).replace("{DATE}", date)
-
-    await app.send_message(
-        chat.id,
-        text=text,
-        reply_markup=InlineKeyboardMarkup(
-            [[InlineKeyboardButton("پروفایل کاربر", url=f"tg://user?id={user.id}")]]
-        ),
-    )
-
-
-async def send_goodbye_message(user, chat_title, group_link):
-    """ارسال پیام خداحافظی به پیوی کاربر."""
-    date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    text = (
-        f"👋 خداحافظ {user.mention}!\n"
-        f"شما از گروه {chat_title} خارج شدید.\n"
-        f"ما از خروج شما متأسفیم و امیدواریم دوباره بازگردید.\n"
-        f"⏰ تاریخ خروج شما: {date}\n\n"
-        f"برای بازگشت به گروه، می‌توانید از دکمه زیر استفاده کنید:"
-    )
-
+# تابع برای دریافت لینک گروه (خصوصی یا عمومی)
+async def get_group_link(client: Client, chat_id: int):
     try:
-        await app.send_message(
-            chat_id=user.id,
-            text=text,
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("🔗 بازگشت به گروه", url=group_link)]]
-            ),
+        # بررسی اینکه آیا گروه عمومی است
+        chat = await client.get_chat(chat_id)
+        if chat.username:
+            return f"https://t.me/{chat.username}"  # لینک عمومی گروه
+        else:
+            # تولید لینک دعوت برای گروه خصوصی
+            return await client.export_chat_invite_link(chat_id)
+    except ChatAdminRequired:
+        print("ربات دسترسی ایجاد لینک را ندارد.")
+        return None
+
+# تابع ارسال پیام خروج کاربر
+async def handle_user_left(client: Client, chat: ChatMemberUpdated):
+    if chat.old_chat_member.status == "member" and chat.new_chat_member.status == "left":
+        user = chat.old_chat_member.user
+        chat_id = chat.chat.id
+        chat_title = chat.chat.title
+
+        # دریافت لینک گروه
+        group_link = await get_group_link(client, chat_id)
+        if not group_link:
+            print("لینک گروه قابل بازیابی نیست.")
+            return
+
+        # ساخت متن پیام
+        message_text = (
+            f"سلام {user.first_name} عزیز!\n"
+            f"متوجه شدیم که از گروه {chat_title} خارج شدی.\n"
+            "از دستت ناراحتیم، ولی خوشحال می‌شیم برگردی! 🌟"
         )
-    except Exception:
-        pass
 
+        # دکمه شیشه‌ای با لینک گروه
+        keyboard = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("برگشت به گروه", url=group_link)]
+            ]
+        )
 
+        try:
+            # ارسال پیام به پی‌وی کاربر
+            await client.send_message(
+                chat_id=user.id,
+                text=message_text,
+                reply_markup=keyboard,
+                disable_web_page_preview=True,
+            )
+        except Exception as e:
+            print(f"خطا در ارسال پیام به کاربر {user.id}: {e}")
+
+# اتصال به event خروج کاربر از گروه
 @app.on_chat_member_updated(filters.group)
-async def member_update(_, chat_member: ChatMemberUpdated):
-    """مدیریت ورود و خروج کاربران."""
-    if chat_member.new_chat_member.status == CMS.MEMBER:
-        user = chat_member.new_chat_member.user
-        chat = chat_member.chat
-        await send_welcome_message(chat, user)
-
-    elif chat_member.old_chat_member and chat_member.new_chat_member.status in {
-        CMS.LEFT,
-        CMS.BANNED,
-    }:
-        user = chat_member.old_chat_member.user
-        chat = chat_member.chat
-        group_link = f"https://t.me/{chat.username}" if chat.username else "لینک خصوصی تنظیم نشده است."
-        await send_goodbye_message(user, chat.title, group_link)
-
-
-@app.on_message(filters.command("تنظیم_خوشامد") & filters.group)
-async def set_welcome_message(_, message):
-    """تنظیم پیام خوش‌آمدگویی."""
-    if not message.reply_to_message:
-        await message.reply_text("لطفاً به یک پیام ریپلای کنید تا به عنوان خوش‌آمد تنظیم شود.")
-        return
-
-    raw_text = message.reply_to_message.text
-    if not raw_text:
-        await message.reply_text("پیام ریپلای‌شده باید شامل متن باشد.")
-        return
-
-    await set_welcome(message.chat.id, raw_text, None)
-    await message.reply_text("✅ پیام خوش‌آمد با موفقیت تنظیم شد.")
-
-
-@app.on_message(filters.command("حذف_خوشامد") & filters.group)
-async def delete_welcome_message(_, message):
-    """حذف پیام خوش‌آمدگویی."""
-    await del_welcome(message.chat.id)
-    await message.reply_text("✅ پیام خوش‌آمد با موفقیت حذف شد.")
-
-
-@app.on_message(filters.command("خوشامد_وضعیت") & filters.group)
-async def get_welcome_status(_, message):
-    """نمایش وضعیت پیام خوش‌آمدگویی."""
-    welcome_data = await get_welcome(message.chat.id)
-    if not welcome_data:
-        await message.reply_text("❌ پیام خوش‌آمد تنظیم نشده است.")
-    else:
-        raw_text, file_id = welcome_data
-        await message.reply_text(f"✅ پیام خوش‌آمد فعال است:\n\n{raw_text}")
+async def track_user_left(client, chat_update: ChatMemberUpdated):
+    await handle_user_left(client, chat_update)
