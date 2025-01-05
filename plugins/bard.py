@@ -6,7 +6,7 @@ from YukkiMusic import app
 @app.on_message(filters.command(["love", "عشق", "کراشم"], prefixes=["", "/"]) & filters.group)
 async def love_command(client, message):
     args = message.text.split()[1:]  # حذف فرمان و دریافت آرگومان‌ها
-    
+
     # چک کردن وارد شدن دقیقاً دو آرگومان
     if len(args) != 2:
         await message.delete()  # هیچ پاسخی نمی‌دهد
@@ -37,7 +37,7 @@ async def love_command(client, message):
 
     # ساخت پاسخ
     response = f"""
-{love_emoji} {user1.first_name} (tg://user?id={user1.id}) ❤️ {user2.first_name} (tg://user?id={user2.id}) {love_emoji}
+{love_emoji} {user1.mention} ❤️ {user2.mention} {love_emoji}
 
 📊 درصد عشق شما: {love_percentage}%
 
