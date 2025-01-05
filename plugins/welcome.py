@@ -1,4 +1,4 @@
-import datetime
+'''import datetime
 from pyrogram import filters
 from pyrogram.enums import ChatMemberStatus as CMS
 from pyrogram.types import ChatMemberUpdated, InlineKeyboardButton, InlineKeyboardMarkup
@@ -92,4 +92,4 @@ async def show_welcome_func(_, message):
     welcome, raw_text, file_id = await get_welcome(message.chat.id)
     if not raw_text:
         return await message.reply_text("هیچ پیام خوش‌آمدگویی تنظیم نشده است.")
-    await message.reply_text(f"پیام خوش‌آمدگویی تنظیم‌شده:\n\n{raw_text}")
+    await message.reply_text(f"پیام خوش‌آمدگویی تنظیم‌شده:\n\n{raw_text}")'''
