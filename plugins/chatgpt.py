@@ -5,7 +5,7 @@ from YukkiMusic import app
 from config import BANNED_USERS
 
 import openai  # اضافه کردن کتابخانه OpenAI
-openai.api_key = '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'  # کلید API خود را اینجا قرار دهید
+openai.api_key = 'proj_IOtNiiYtjFJjurkhOpFmOJDQ'  # کلید API خود را اینجا قرار دهید
 
 @app.on_message(filters.command(["chatgpt", "هوش مصنوعی", "سوال"], prefixes=['', '/']) & ~BANNED_USERS)
 async def chatgpt_chat(bot, message):
