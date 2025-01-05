@@ -1,12 +1,10 @@
 import datetime
 from pyrogram import filters
 from pyrogram.enums import ChatMemberStatus as CMS
-from pyrogram.errors.exceptions.bad_request_400 import ChatAdminRequired
 from pyrogram.types import ChatMemberUpdated, InlineKeyboardButton, InlineKeyboardMarkup
 from YukkiMusic import app
 from YukkiMusic.utils.database import get_welcome, set_welcome, del_welcome
 from YukkiMusic.utils.permissions import adminsOnly
-
 
 # مدیریت خوش‌آمدگویی
 async def send_welcome_message(chat, user_id):
@@ -19,7 +17,6 @@ async def send_welcome_message(chat, user_id):
     text = text.replace("{DATE}", datetime.datetime.now().strftime("%Y-%m-%d"))
 
     await app.send_message(chat.id, text)
-
 
 # مدیریت لفت‌بک (خروج از گروه)
 @app.on_chat_member_updated(filters.group, group=6)
@@ -36,7 +33,9 @@ async def handle_user_events(_, update: ChatMemberUpdated):
     if old_status == CMS.MEMBER and new_status == CMS.LEFT:
         member = update.old_chat_member.user
         try:
+            # ساخت لینک دعوت به گروه
             group_link = await app.create_chat_invite_link(chat.id)
+            # ارسال پیام در پی‌وی کاربر
             await app.send_message(
                 member.id,
                 f"سلام {member.first_name}!\n"
@@ -49,11 +48,10 @@ async def handle_user_events(_, update: ChatMemberUpdated):
         except Exception as e:
             print(f"Error sending private message: {e}")
 
-
 # دستور تنظیم پیام خوش‌آمد (فقط در گروه)
-@app.on_message(filters.command("تنظیم خوشامد") & filters.group)
+@app.on_message(filters.command("تنظیم_خوشامد") & filters.group)
 @adminsOnly("can_change_info")
-async def set_welcome(_, message):
+async def set_welcome_func(_, message):
     replied = message.reply_to_message
     if not replied:
         return await message.reply_text("لطفاً به یک پیام (متن، عکس یا GIF) پاسخ دهید.")
@@ -80,19 +78,17 @@ async def set_welcome(_, message):
     await set_welcome(message.chat.id, welcome_type, text, file_id)
     await message.reply_text("پیام خوش‌آمدگویی با موفقیت تنظیم شد.")
 
-
 # دستور حذف پیام خوش‌آمد (فقط در گروه)
-@app.on_message(filters.command("حذف خوشامد") & filters.group)
+@app.on_message(filters.command("حذف_خوشامد") & filters.group)
 @adminsOnly("can_change_info")
-async def delete_welcome(_, message):
+async def delete_welcome_func(_, message):
     await del_welcome(message.chat.id)
     await message.reply_text("پیام خوش‌آمدگویی حذف شد.")
 
-
 # دستور نمایش پیام خوش‌آمد (فقط در گروه)
-@app.on_message(filters.command("نمایش خوشامد") & filters.group)
+@app.on_message(filters.command("نمایش_خوشامد") & filters.group)
 @adminsOnly("can_change_info")
-async def show_welcome(_, message):
+async def show_welcome_func(_, message):
     welcome, raw_text, file_id = await get_welcome(message.chat.id)
     if not raw_text:
         return await message.reply_text("هیچ پیام خوش‌آمدگویی تنظیم نشده است.")
