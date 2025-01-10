@@ -1,16 +1,17 @@
 
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 import time
 from YukkiMusic import app
 
-# ذخیره اطلاعات پیام‌ها
+
+# ذخیره پیام‌ها
 hidden_messages = {}
 
 @app.on_message(filters.command("نجوا") & filters.group)
 async def handle_secret_message(bot: Client, message: Message):
     try:
-        # بررسی شرایط صحیح ارسال دستور
+        # تعیین کاربر هدف
         if message.reply_to_message:
             target_user = message.reply_to_message.from_user
         else:
@@ -21,114 +22,92 @@ async def handle_secret_message(bot: Client, message: Message):
             target_user = await bot.get_users(identifier)
 
         target_user_id = target_user.id
-        target_username = target_user.mention
+        bot_username = (await bot.get_me()).username
 
-        # ذخیره اطلاعات پیام برای ارسال به پیوی
+        # ذخیره اطلاعات پیام
         hidden_messages[target_user_id] = {
             "group_id": message.chat.id,
             "group_title": message.chat.title,
             "sender_id": message.from_user.id,
             "sender_name": message.from_user.first_name,
-            "target_username": target_username,
             "timestamp": time.time()
         }
 
-        # ایجاد لینک مستقیم به پیوی ربات
-        bot_username = (await bot.get_me()).username
+        # ارسال لینک به پیوی ربات
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("📨 ارسال پیام", url=f"https://t.me/{bot_username}?start=send_{target_user_id}")]
         ])
-
         await message.reply_text(
-            f"💌 برای ارسال پیام به {target_username} لطفاً به پیوی من مراجعه کنید و متن خود را ارسال کنید.",
+            f"💌 برای ارسال پیام به {target_user.mention} لطفاً به پیوی من مراجعه کنید.",
             reply_markup=keyboard
         )
-
     except Exception as e:
         await message.reply_text(f"⚠️ خطا: {e}")
 
-
 @app.on_message(filters.private & filters.command("start"))
 async def start_private_message(bot: Client, message: Message):
-    command_data = message.text.split("_")
-
-    if len(command_data) == 2 and command_data[1].isdigit():
-        target_user_id = int(command_data[1])
+    if message.text.startswith("/start send_"):
+        target_user_id = int(message.text.split("_")[1])
         
-        # بررسی وجود اطلاعات پیام
         if target_user_id in hidden_messages:
             await message.reply_text(
-                f"💬 لطفاً متن پیامی که می‌خواهید به {hidden_messages[target_user_id]['target_username']} ارسال شود را وارد کنید."
+                f"💬 لطفاً متن پیامی که می‌خواهید به {hidden_messages[target_user_id]['sender_name']} ارسال شود را بنویسید."
             )
             hidden_messages[target_user_id]["awaiting_message"] = True
-
+        else:
+            await message.reply_text("⛔ پیامی مرتبط با این کاربر یافت نشد.")
 
 @app.on_message(filters.private & filters.text)
 async def receive_private_message(bot: Client, message: Message):
-    sender_id = message.from_user.id
-    target_data = None
+    for target_user_id, data in hidden_messages.items():
+        if "awaiting_message" in data and data["awaiting_message"]:
+            group_id = data["group_id"]
+            group_title = data["group_title"]
+            sender_name = data["sender_name"]
 
-    # بررسی پیام مرتبط
-    for user_id, data in hidden_messages.items():
-        if data.get("awaiting_message") and data["sender_id"] == sender_id:
-            target_data = (user_id, data)
+            # ارسال پیام به گروه و تگ کاربر هدف
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("👀 خواندن پیام", callback_data=f"read_{target_user_id}"),
+                 InlineKeyboardButton("🗑 حذف پیام", callback_data=f"delete_{target_user_id}")]
+            ])
+            
+            await bot.send_message(
+                group_id,
+                f"📢 پیام جدید از {sender_name} برای {await bot.get_users(target_user_id).mention}:\n\n{message.text}",
+                reply_markup=keyboard
+            )
+            
+            # ارسال تایید به فرستنده
+            await message.reply_text("✅ پیام شما ارسال شد.")
+            
+            # به‌روزرسانی داده‌ها
+            hidden_messages[target_user_id].update({
+                "message_text": message.text,
+                "awaiting_message": False
+            })
             break
-
-    if not target_data:
-        return await message.reply_text("⛔ پیامی مرتبط با این کاربر یافت نشد.")
-
-    user_id, data = target_data
-    group_id = data["group_id"]
-    group_title = data["group_title"]
-    target_username = data["target_username"]
-
-    # ارسال پیام به گروه و تگ کاربر هدف
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👀 خواندن پیام", callback_data=f"read_{user_id}"),
-         InlineKeyboardButton("🗑️ حذف پیام", callback_data=f"delete_{user_id}")]
-    ])
-
-    await bot.send_message(
-        group_id,
-        f"📨 پیام جدید برای {target_username}:\n\n"
-        f"💬 {message.text}",
-        reply_markup=keyboard
-    )
-
-    await message.reply_text("✅ پیام شما به گروه ارسال شد.")
-
-    # بروزرسانی اطلاعات پیام
-    hidden_messages[user_id]["awaiting_message"] = False
-
 
 @app.on_callback_query(filters.regex(r"read_"))
 async def handle_read_message(bot: Client, query: CallbackQuery):
-    user_id = int(query.data.split("_")[1])
-    data = hidden_messages.get(user_id)
+    target_user_id = int(query.data.split("_")[1])
 
-    if not data:
-        return await query.answer("⛔ پیام یافت نشد.", show_alert=True)
-
-    if query.from_user.id != user_id:
-        return await query.answer("🤭 این پیام برای شما نیست!", show_alert=True)
-
-    await query.answer("✅ پیام مشاهده شد.")
-    await query.message.edit_text(f"👀 پیام توسط {data['target_username']} مشاهده شد.")
-    # اطلاع به ارسال‌کننده
-    sender_id = data["sender_id"]
-    await bot.send_message(sender_id, "📩 پیام شما مشاهده شد.")
-
+    if query.from_user.id == target_user_id:
+        await query.message.edit_text("📖 پیام مشاهده شد.")
+        sender_id = hidden_messages[target_user_id]["sender_id"]
+        
+        # اطلاع‌رسانی به فرستنده
+        await bot.send_message(sender_id, f"👁 پیام شما توسط {query.from_user.first_name} مشاهده شد.")
+    else:
+        await query.answer("😅 این پیام برای شما نیست!", show_alert=True)
 
 @app.on_callback_query(filters.regex(r"delete_"))
 async def handle_delete_message(bot: Client, query: CallbackQuery):
-    user_id = int(query.data.split("_")[1])
-    data = hidden_messages.get(user_id)
+    target_user_id = int(query.data.split("_")[1])
 
-    if not data:
-        return await query.answer("⛔ پیام یافت نشد.", show_alert=True)
+    if query.from_user.id == target_user_id:
+        await query.message.delete()
+        await query.answer("🗑 پیام حذف شد.")
+    else:
+        await query.answer("😂 شما اجازه حذف این پیام را ندارید!", show_alert=True)
 
-    if query.from_user.id != user_id:
-        return await query.answer("🤭 این پیام برای شما نیست!", show_alert=True)
-
-    await query.message.delete()
-    await query.answer("🗑️ پیام حذف شد.")
+app.run()
