@@ -1,16 +1,16 @@
 import os
-
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from TheApi import api
 from YukkiMusic import app
 
-
-@app.on_message(filters.command(["tgm", "tgt", "telegraph", "tl"]))
+# تابعی برای ارسال فایل به تلگراف
+@app.on_message(filters.command(["تلگراف", "آپلود"]))
 async def get_link_group(client, message):
+    # بررسی اینکه آیا به یک پیام رسانه‌ای پاسخ داده شده است
     if not message.reply_to_message:
         return await message.reply_text(
-            "Pʟᴇᴀsᴇ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇᴅɪᴀ ᴛᴏ ᴜᴘʟᴏᴀᴅ ᴏɴ Tᴇʟᴇɢʀᴀᴘʜ"
+            "لطفاً به یک رسانه پاسخ بدهید تا آن را در تلگراف آپلود کنم."
         )
 
     media = message.reply_to_message
@@ -22,31 +22,34 @@ async def get_link_group(client, message):
     elif media.document:
         file_size = media.document.file_size
 
+    # بررسی اندازه فایل (نباید بیشتر از 15MB باشد)
     if file_size > 15 * 1024 * 1024:
-        return await message.reply_text("Pʟᴇᴀsᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴍᴇᴅɪᴀ ғɪʟᴇ ᴜɴᴅᴇʀ 15MB.")
+        return await message.reply_text("لطفاً یک فایل کمتر از 15MB ارسال کنید.")
 
     try:
-        text = await message.reply("Pʀᴏᴄᴇssɪɴɢ...")
+        # ارسال پیام در حال پردازش
+        text = await message.reply("در حال پردازش...")
 
         async def progress(current, total):
             try:
-                await text.edit_text(f"📥 Dᴏᴡɴʟᴏᴀᴅɪɴɢ... {current * 100 / total:.1f}%")
+                await text.edit_text(f"📥 در حال بارگیری... {current * 100 / total:.1f}%")
             except Exception:
                 pass
 
         try:
             local_path = await media.download(progress=progress)
-            await text.edit_text("📤 Uᴘʟᴏᴀᴅɪɴɢ ᴛᴏ ᴛᴇʟᴇɢʀᴀᴘʜ...")
+            await text.edit_text("📤 در حال آپلود به تلگراف...")
 
+            # آپلود به تلگراف
             upload_path = api.upload_image(local_path)
 
             await text.edit_text(
-                f"🌐 | [ᴜᴘʟᴏᴀᴅᴇᴅ ʟɪɴᴋ]({upload_path})",
+                f"🌐 | [لینک آپلود شده]({upload_path})",
                 reply_markup=InlineKeyboardMarkup(
                     [
                         [
                             InlineKeyboardButton(
-                                "ᴜᴘʟᴏᴀᴅᴇᴅ ғɪʟᴇ",
+                                "دانلود فایل",
                                 url=upload_path,
                             )
                         ]
@@ -60,7 +63,7 @@ async def get_link_group(client, message):
                 pass
 
         except Exception as e:
-            await text.edit_text(f"❌ Fɪʟᴇ ᴜᴘʟᴏᴀᴅ ғᴀɪʟᴇᴅ\n\n<i>Rᴇᴀsᴏɴ: {e}</i>")
+            await text.edit_text(f"❌ خطا در آپلود فایل\n\n<i>دلیل: {e}</i>")
             try:
                 os.remove(local_path)
             except Exception:
@@ -69,22 +72,22 @@ async def get_link_group(client, message):
     except Exception:
         pass
 
+# # راهنمای دستورات
+# __HELP__ = """
+# **دستورات ربات تلگراف آپلود**
 
-__HELP__ = """
-**ᴛᴇʟᴇɢʀᴀᴘʜ ᴜᴘʟᴏᴀᴅ ʙᴏᴛ ᴄᴏᴍᴍᴀɴᴅs**
+# برای آپلود رسانه به تلگراف از دستورات زیر استفاده کنید:
 
-ᴜsᴇ ᴛʜᴇsᴇ ᴄᴏᴍᴍᴀɴᴅs ᴛᴏ ᴜᴘʟᴏᴀᴅ ᴍᴇᴅɪᴀ ᴛᴏ ᴛᴇʟᴇɢʀᴀᴘʜ:
+# - ارسال به تلگراف: آپلود رسانه به تلگراف و دریافت لینک آن.
+# - آپلود به تلگراف: مشابه دستور "ارسال به تلگراف".
+# - تلگراف: مشابه دستور "ارسال به تلگراف".
+# - آپلود: مشابه دستور "ارسال به تلگراف".
 
-- `/tgm`: ᴜᴘʟᴏᴀᴅ ʀᴇᴘʟɪᴇᴅ ᴍᴇᴅɪᴀ ᴛᴏ ᴛᴇʟᴇɢʀᴀᴘʜ.
-- `/tgt`: sᴀᴍᴇ ᴀs `/tgm`.
-- `/telegraph`: sᴀᴍᴇ ᴀs `/tgm`.
-- `/tl`: sᴀᴍᴇ ᴀs `/tgm`.
+# **مثال:**
+# - به یک عکس یا ویدیو پاسخ دهید و دستور "ارسال به تلگراف" را ارسال کنید تا آن را به تلگراف آپلود کنید.
 
-**ᴇxᴀᴍᴘʟᴇ:**
-- ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴘʜᴏᴛᴏ ᴏʀ ᴠɪᴅᴇᴏ ᴡɪᴛʜ `/tgm` ᴛᴏ ᴜᴘʟᴏᴀᴅ ɪᴛ.
+# **نکته:**
+# لطفاً برای آپلود، به یک فایل رسانه‌ای پاسخ دهید.
+# """
 
-**ɴᴏᴛᴇ:**
-ʏᴏᴜ ᴍᴜsᴛ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇᴅɪᴀ ғɪʟᴇ ғᴏʀ ᴛʜᴇ ᴜᴘʟᴏᴀᴅ ᴛᴏ ᴡᴏʀᴋ.
-"""
-
-# __MODULE__ = "Tᴇʟᴇɢʀᴀᴘʜ"
+# # __MODULE__ = "Tᴇʟᴇɢʀᴀᴘʜ"
