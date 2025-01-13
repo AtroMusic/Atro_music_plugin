@@ -1,14 +1,20 @@
 import asyncio
-
 from pyrogram import filters
 from pyrogram.enums import ChatMembersFilter
 from pyrogram.errors import FloodWait
 from YukkiMusic import app
 
-
 SPAM_CHATS = []
 
+# تابعی برای بررسی اینکه آیا کاربر فعال است
+async def is_active_member(chat_id, user_id):
+    # بررسی اینکه آیا کاربر پیام‌هایی اخیراً ارسال کرده است
+    async for message in app.get_chat_history(chat_id, limit=5):  # چک کردن 5 پیام اخیر
+        if message.from_user and message.from_user.id == user_id:
+            return True
+    return False
 
+# تابع بررسی ادمین بودن
 async def is_admin(chat_id, user_id):
     admin_ids = [
         admin.user.id
@@ -16,269 +22,80 @@ async def is_admin(chat_id, user_id):
             chat_id, filter=ChatMembersFilter.ADMINISTRATORS
         )
     ]
-    if user_id in admin_ids:
-        return True
-    return False
-
+    return user_id in admin_ids
 
 @app.on_message(
-    filters.command(["all", "allmention", "mentionall", "tagall"], prefixes=["/", "@"])
+    filters.command(["تگ"], prefixes=["@", " "])  # بررسی دستور تگ
 )
-async def tag_all_users(_, message):
-    admin = await is_admin(message.chat.id, message.from_user.id)
-    if not admin:
+async def tag_active_users(_, message):
+    # بررسی اینکه آیا کاربر ادمین است
+    if not await is_admin(message.chat.id, message.from_user.id):
         return
 
-    if message.chat.id in SPAM_CHATS:
-        return await message.reply_text(
-            "ᴛᴀɢɢɪɴɢ ᴘʀᴏᴄᴇss ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ ɪғ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ sᴛᴏᴘ sᴏ ᴜsᴇ /cancel"
-        )
+    # بررسی اینکه دستور تگ به صورت ریپلای است یا خیر
     replied = message.reply_to_message
     if len(message.command) < 2 and not replied:
-        await message.reply_text(
-            "** ɢɪᴠᴇ sᴏᴍᴇ ᴛᴇxᴛ ᴛᴏ ᴛᴀɢ ᴀʟʟ, ʟɪᴋᴇ »** `@all Hi Friends`"
-        )
-        return
+        return  # هیچ جوابی داده نمی‌شود در صورتی که پیام مستقیم نباشد
+
+    # اگر دستور تگ به یک پیام ریپلای شده ارسال شده باشد
     if replied:
         usernum = 0
         usertxt = ""
         try:
-            SPAM_CHATS.append(message.chat.id)
             async for m in app.get_chat_members(message.chat.id):
-                if message.chat.id not in SPAM_CHATS:
-                    break
                 if m.user.is_deleted or m.user.is_bot:
                     continue
-                usernum += 1
-                usertxt += f"[{m.user.first_name}](tg://user?id={m.user.id})  "
-                if usernum == 7:
-                    await replied.reply_text(
-                        usertxt,
-                        disable_web_page_preview=True,
-                    )
-                    await asyncio.sleep(1)
-                    usernum = 0
-                    usertxt = ""
 
+                # بررسی اینکه آیا کاربر فعال است
+                if await is_active_member(message.chat.id, m.user.id):
+                    usernum += 1
+                    usertxt += f"[{m.user.first_name}](tg://user?id={m.user.id})  "
+                    if usernum == 7:
+                        await replied.reply_text(
+                            usertxt, disable_web_page_preview=True
+                        )
+                        await asyncio.sleep(1)
+                        usernum = 0
+                        usertxt = ""
             if usernum != 0:
                 await replied.reply_text(
-                    usertxt,
-                    disable_web_page_preview=True,
+                    usertxt, disable_web_page_preview=True
                 )
         except FloodWait as e:
             await asyncio.sleep(e.value)
-        try:
-            SPAM_CHATS.remove(message.chat.id)
-        except Exception:
-            pass
     else:
+        # اگر دستور تگ به صورت مستقیم وارد شده باشد
+        usernum = 0
+        usertxt = ""
+        text = message.text.split(None, 1)[1]
         try:
-            usernum = 0
-            usertxt = ""
-            text = message.text.split(None, 1)[1]
-            SPAM_CHATS.append(message.chat.id)
             async for m in app.get_chat_members(message.chat.id):
-                if message.chat.id not in SPAM_CHATS:
-                    break
                 if m.user.is_deleted or m.user.is_bot:
                     continue
-                usernum += 1
-                usertxt += f"[{m.user.first_name}](tg://user?id={m.user.id})  "
-                if usernum == 7:
-                    await app.send_message(
-                        message.chat.id,
-                        f"{text}\n{usertxt}",
-                        disable_web_page_preview=True,
-                    )
-                    await asyncio.sleep(2)
-                    usernum = 0
-                    usertxt = ""
+
+                # بررسی اینکه آیا کاربر فعال است
+                if await is_active_member(message.chat.id, m.user.id):
+                    usernum += 1
+                    usertxt += f"[{m.user.first_name}](tg://user?id={m.user.id})  "
+                    if usernum == 7:
+                        await app.send_message(
+                            message.chat.id, f"{text}\n{usertxt}", disable_web_page_preview=True
+                        )
+                        await asyncio.sleep(2)
+                        usernum = 0
+                        usertxt = ""
             if usernum != 0:
                 await app.send_message(
-                    message.chat.id,
-                    f"{text}\n\n{usertxt}",
-                    disable_web_page_preview=True,
+                    message.chat.id, f"{text}\n\n{usertxt}", disable_web_page_preview=True
                 )
         except FloodWait as e:
             await asyncio.sleep(e.value)
-        try:
-            SPAM_CHATS.remove(message.chat.id)
-        except Exception:
-            pass
 
+# __HELP__ = """
+# **دستورات ربات تگ (فارسی)**
 
-async def tag_all_admins(_, message):
-    if message.chat.id in SPAM_CHATS:
-        return await message.reply_text(
-            "ᴛᴀɢɢɪɴɢ ᴘʀᴏᴄᴇss ɪs ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ ɪғ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ sᴛᴏᴘ sᴏ ᴜsᴇ /cancel"
-        )
-    replied = message.reply_to_message
-    if len(message.command) < 2 and not replied:
-        await message.reply_text(
-            "** ɢɪᴠᴇ sᴏᴍᴇ ᴛᴇxᴛ ᴛᴏ ᴛᴀɢ ᴀʟʟ, ʟɪᴋᴇ »** `@admins Hi Friends`"
-        )
-        return
-    if replied:
-        usernum = 0
-        usertxt = ""
-        try:
-            SPAM_CHATS.append(message.chat.id)
-            async for m in app.get_chat_members(
-                message.chat.id, filter=ChatMembersFilter.ADMINISTRATORS
-            ):
-                if message.chat.id not in SPAM_CHATS:
-                    break
-                if m.user.is_deleted or m.user.is_bot:
-                    continue
-                usernum += 1
-                usertxt += f"[{m.user.first_name}](tg://user?id={m.user.id})  "
-                if usernum == 7:
-                    await replied.reply_text(
-                        usertxt,
-                        disable_web_page_preview=True,
-                    )
-                    await asyncio.sleep(1)
-                    usernum = 0
-                    usertxt = ""
-            if usernum != 0:
-                await replied.reply_text(
-                    usertxt,
-                    disable_web_page_preview=True,
-                )
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-        try:
-            SPAM_CHATS.remove(message.chat.id)
-        except Exception:
-            pass
-    else:
-        usernum = 0
-        usertxt = ""
-        try:
-            text = message.text.split(None, 1)[1]
-            SPAM_CHATS.append(message.chat.id)
-            async for m in app.get_chat_members(
-                message.chat.id, filter=ChatMembersFilter.ADMINISTRATORS
-            ):
-                if message.chat.id not in SPAM_CHATS:
-                    break
-                if m.user.is_deleted or m.user.is_bot:
-                    continue
-                usernum += 1
-                usertxt += f"[{m.user.first_name}](tg://user?id={m.user.id})  "
-                if usernum == 7:
-                    await app.send_message(
-                        message.chat.id,
-                        f"{text}\n{usertxt}",
-                        disable_web_page_preview=True,
-                    )
-                    await asyncio.sleep(2)
-                    usernum = 0
-                    usertxt = ""
-            if usernum != 0:
-                await app.send_message(
-                    message.chat.id,
-                    f"{text}\n\n{usertxt}",
-                    disable_web_page_preview=True,
-                )
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-        try:
-            SPAM_CHATS.remove(message.chat.id)
-        except Exception:
-            pass
+# - `تگ_همه_فعال` | `تگ_اعضای_فعال`: برای تگ کردن اعضای فعال گروه.
 
-
-@app.on_message(
-    filters.command(["admin", "admins", "report"], prefixes=["/", "@"]) & filters.group
-)
-async def admintag_with_reporting(client, message):
-    if not message.from_user:
-        return
-    chat_id = message.chat.id
-    from_user_id = message.from_user.id
-    admins = [
-        admin.user.id
-        async for admin in client.get_chat_members(
-            chat_id, filter=ChatMembersFilter.ADMINISTRATORS
-        )
-    ]
-    if message.command[0] == "report":
-        if from_user_id in admins:
-            return await message.reply_text(
-                "ᴏᴘᴘs! ʏᴏᴜ ᴀʀᴇ ʟᴏᴏᴋs ʟɪᴋᴇ ᴀɴ ᴀᴅᴍɪɴ!\nʏᴏᴜ ᴄᴀɴ'ᴛ ʀᴇᴘᴏʀᴛ ᴀɴʏ ᴜsᴇʀs ᴛᴏ ᴀᴅᴍɪɴ"
-            )
-
-    if from_user_id in admins:
-        return await tag_all_admins(client, message)
-
-    if len(message.text.split()) <= 1 and not message.reply_to_message:
-        return await message.reply_text("Reply to a message to report that user.")
-
-    reply = message.reply_to_message or message
-    reply_user_id = reply.from_user.id if reply.from_user else reply.sender_chat.id
-    linked_chat = (await client.get_chat(chat_id)).linked_chat
-    if reply_user_id == app.id:
-        return await message.reply_text("Why would I report myself?")
-    if (
-        reply_user_id in admins
-        or reply_user_id == chat_id
-        or (linked_chat and reply_user_id == linked_chat.id)
-    ):
-        return await message.reply_text(
-            "Do you know that the user you are replying to is an admin?"
-        )
-
-    user_mention = reply.from_user.mention if reply.from_user else "the user"
-    text = f"Reported {user_mention} to admins!."
-
-    for admin in admins:
-        admin_member = await client.get_chat_member(chat_id, admin)
-        if not admin_member.user.is_bot and not admin_member.user.is_deleted:
-            text += f"[\u2063](tg://user?id={admin})"
-
-    await reply.reply_text(text)
-
-
-@app.on_message(
-    filters.command(
-        [
-            "stopmention",
-            "cancel",
-            "cancelmention",
-            "offmention",
-            "mentionoff",
-            "cancelall",
-        ],
-        prefixes=["/", "@"],
-    )
-)
-async def cancelcmd(_, message):
-    chat_id = message.chat.id
-    admin = await is_admin(chat_id, message.from_user.id)
-    if not admin:
-        return
-    if chat_id in SPAM_CHATS:
-        try:
-            SPAM_CHATS.remove(chat_id)
-        except Exception:
-            pass
-        return await message.reply_text("**ᴛᴀɢɢɪɴɢ ᴘʀᴏᴄᴇss sᴜᴄᴄᴇssғᴜʟʟʏ sᴛᴏᴘᴘᴇᴅ!**")
-
-    else:
-        await message.reply_text("**ɴᴏ ᴘʀᴏᴄᴇss ᴏɴɢᴏɪɴɢ!**")
-        return
-
-
-# __MODULE__ = "Tᴀɢᴀʟʟ"
-__HELP__ = """
-
-@all ᴏʀ /all | /tagall ᴏʀ  @tagall | /mentionall ᴏʀ  @mentionall [ᴛᴇxᴛ] ᴏʀ [ʀᴇᴘʟʏ ᴛᴏ ᴀɴʏ ᴍᴇssᴀɢᴇ] ᴛᴏ ᴛᴀɢ ᴀʟʟ ᴜsᴇʀ's ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ ʙᴛ ʙᴏᴛ
-
-/admins | @admins | /report [ᴛᴇxᴛ] ᴏʀ [ʀᴇᴘʟʏ ᴛᴏ ᴀɴʏ ᴍᴇssᴀɢᴇ] ᴛᴏ ᴛᴀɢ ᴀʟʟ ᴀᴅᴍɪɴ's ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ
-
-
-/cancel Oʀ @cancel |  /offmention Oʀ @offmention | /mentionoff Oʀ @mentionoff | /cancelall Oʀ @cancelall - ᴛᴏ sᴛᴏᴘ ʀᴜɴɴɪɴɢ ᴀɴʏ ᴛᴀɢ ᴘʀᴏᴄᴇss
-
-**__Nᴏᴛᴇ__** Tʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ᴜsᴇ ᴛʜᴇ Aᴅᴍɪɴs ᴏғ Cʜᴀᴛ ᴀɴᴅ ᴍᴀᴋᴇ Sᴜʀᴇ Bᴏᴛ ᴀɴᴅ ᴀssɪsᴛᴀɴᴛ ɪs ᴀɴ ᴀᴅᴍɪɴ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ's
-"""
+# **نکته:**
+# - این دستور فقط افرادی را که اخیراً پیام ارسال کرده‌اند (فعال) تگ می‌کند.
+# """
