@@ -134,7 +134,8 @@ async def couple_handler(_, message):
 {c1_name} ❤️ {c2_name}
 
 📜 شعر عاشقانه:
-"{poem}"""
+   {poem}
+   """
         await message.reply_photo(
             test_image_path,
             caption=caption,
@@ -159,3 +160,4 @@ async def couple_handler(_, message):
     finally:
         for file in [p1_path, p2_path, test_image_path, cppic_path]:
             if os.path.exists(file):
+                os.remove(file)
