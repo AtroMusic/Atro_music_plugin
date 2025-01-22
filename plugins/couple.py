@@ -1,7 +1,7 @@
 import os
 import random
 import requests
-from PIL import Image, ImageDraw, ImageEnhance
+from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
 from pyrogram import filters
 from pyrogram.enums import ChatType
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -21,29 +21,7 @@ poems = [
     "به تو که فکر می‌کنم، دلم پر از شادی می‌شود 🌷",
     "با تو عشق را در تک‌تک لحظه‌ها حس می‌کنم 💞",
     "قلبم برای تو می‌تپد، همیشه و تا ابد ❤️",
-    "تو روشنی قلب تاریک منی 🌟",
-    "هر بار که به تو نگاه می‌کنم، دوباره عاشق می‌شوم 💓",
-    "عشق تو دنیای مرا رنگین‌تر کرده است 🌈",
-    "بی‌تو، دنیا برایم چیزی جز سکوت نیست 💔",
-    "هر لحظه کنار تو یعنی خوشبختی 🍀",
-    "با تو هر راهی به سوی بهشت می‌رود 🌺",
-    "تو شعله‌ای هستی که زندگی‌ام را گرم می‌کند 🔥",
-    "عشق تو دلیل تمام لبخندهای من است 😊",
-    "تو ستاره‌ی روشن شب‌های منی 🌌",
-    "هر روزی که با تو می‌گذرد، بهترین روز زندگی من است 🌷",
-    "عشق تو مثل نسیمی است که روح مرا تازه می‌کند 💨",
-    "تو رویای شیرین شب‌های منی 🌙",
-    "در نگاه تو آرامشی است که هیچ‌جا پیدا نمی‌کنم 💖",
-    "دنیای من با تو کامل می‌شود 🌟",
-    "تو آهنگ دلنشین زندگی منی 🎵",
-    "با تو هر ثانیه زیباترین لحظه است ⏳",
-    "تو همان عشقی هستی که همیشه آرزویش را داشتم 💕",
-    "کنار تو همه چیز ممکن است 🌟",
-    "قلب من تا همیشه برای تو خواهد تپید ❤️",
 ]
-
-# لیست اموجی‌های تصادفی
-emojis = ["✨", "💖", "🌹", "🌟", "🔥", "💘", "🌷", "🍀", "💫", "🎉"]
 
 # دانلود تصویر از آدرس URL
 def download_image(url, path):
@@ -53,24 +31,11 @@ def download_image(url, path):
             f.write(response.content)
     return path
 
-# انتخاب تم گرافیکی تصادفی
-def get_random_background():
-    backgrounds = [
-        "https://telegra.ph/file/96f36504f149e5680741a.jpg",  # تم اول
-        "https://telegra.ph/file/a5f6f3d22d67bcdb8ffb6.jpg",  # تم دوم
-        "https://telegra.ph/file/c34963b225d1007f39e8b.jpg"   # تم سوم
-    ]
-    return random.choice(backgrounds)
-
-# افزودن افکت‌های تصویری
-def apply_image_effects(img):
-    enhancer = ImageEnhance.Brightness(img)
-    img = enhancer.enhance(1.2)  # افزایش روشنایی تصویر
-    return img
-
-# محاسبه درصد تطابق عاشقانه
-def calculate_love_percentage():
-    return random.randint(60, 100)
+# افزودن فریم صورتی به تصویر
+def add_frame(img, border_width=20, border_color=(255, 182, 193)):
+    img_with_border = Image.new("RGB", (img.width + 2 * border_width, img.height + 2 * border_width), border_color)
+    img_with_border.paste(img, (border_width, border_width))
+    return img_with_border
 
 @app.on_message(filters.text & filters.group)
 async def couple_handler(_, message):
@@ -132,22 +97,19 @@ async def couple_handler(_, message):
 
         img1 = Image.open(p1).resize((437, 437))
         img2 = Image.open(p2).resize((437, 437))
-        mask = Image.new("L", img1.size, 0)
-        ImageDraw.Draw(mask).ellipse((0, 0) + img1.size, fill=255)
 
-        mask1 = Image.new("L", img2.size, 0)
-        ImageDraw.Draw(mask1).ellipse((0, 0) + img2.size, fill=255)
+        # افکت‌های عاشقانه
+        img1 = img1.filter(ImageFilter.GaussianBlur(radius=5))  # بلور
+        img2 = img2.filter(ImageFilter.GaussianBlur(radius=5))
+        img1 = ImageEnhance.Color(img1).enhance(1.5)  # افزایش رنگ
+        img2 = ImageEnhance.Color(img2).enhance(1.5)
+        img1 = add_frame(img1)  # اضافه کردن فریم صورتی
+        img2 = add_frame(img2)
 
-        img1.putalpha(mask)
-        img2.putalpha(mask1)
-
-        # انتخاب تم گرافیکی تصادفی
-        background_image_path = download_image(get_random_background(), cppic_path)
+        background_image_path = download_image(
+            "https://telegra.ph/file/96f36504f149e5680741a.jpg", cppic_path
+        )
         img = Image.open(background_image_path)
-
-        # اعمال افکت‌های تصویری
-        img = apply_image_effects(img)
-
         img.paste(img1, (116, 160), img1)
         img.paste(img2, (789, 160), img2)
 
@@ -156,22 +118,14 @@ async def couple_handler(_, message):
         # انتخاب شعر عاشقانه تصادفی
         poem = random.choice(poems)
 
-        # محاسبه درصد تطابق عاشقانه
-        love_percentage = calculate_love_percentage()
-
-        # ارسال پیام با کلید شیشه‌ای و اموجی‌های تصادفی
+        # ارسال پیام با کلید شیشه‌ای
         caption = f"""
 ✨ زوج امروز:
 
 {c1_name} ❤️ {c2_name}
 
 📜 شعر عاشقانه:
-"{poem}"
-
-💖 درصد تطابق عاشقانه: {love_percentage}%
-
-{random.choice(emojis)} {random.choice(emojis)} {random.choice(emojis)}
-        
+"{poem} """
         await message.reply_photo(
             test_image_path,
             caption=caption,
@@ -194,4 +148,6 @@ async def couple_handler(_, message):
     except Exception as e:
         await message.reply_text(f"❌ خطایی رخ داده است: {e}")
     finally:
-        pass
+        for file in [p1_path, p2_path, test_image_path, cppic_path]:
+            if os.path.exists(file):
+                os.remove(file)
