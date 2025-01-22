@@ -3,11 +3,10 @@ import random
 import requests
 from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
 from pyrogram import filters
-from pyrogram.enums import ChatType
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from TheApi import api
 from YukkiMusic import app
-from utils import get_couple, get_image, save_couple
+from utils import save_couple
 
 # لیست اشعار عاشقانه
 poems = [
@@ -95,15 +94,25 @@ async def couple_handler(_, message):
                 "https://telegra.ph/file/05aa686cf52fc666184bf.jpg", p2_path
             )
 
-        img1 = Image.open(p1).resize((437, 437))
-        img2 = Image.open(p2).resize((437, 437))
+        img1 = Image.open(p1).resize((437, 437)).convert("RGBA")
+        img2 = Image.open(p2).resize((437, 437)).convert("RGBA")
+
+        # ایجاد ماسک‌های شفافیت
+        mask = Image.new("L", img1.size, 0)
+        ImageDraw.Draw(mask).ellipse((0, 0) + img1.size, fill=255)
+
+        mask1 = Image.new("L", img2.size, 0)
+        ImageDraw.Draw(mask1).ellipse((0, 0) + img2.size, fill=255)
+
+        img1.putalpha(mask)
+        img2.putalpha(mask1)
 
         # افکت‌های عاشقانه
-        img1 = img1.filter(ImageFilter.GaussianBlur(radius=5))  # بلور
+        img1 = img1.filter(ImageFilter.GaussianBlur(radius=5))
         img2 = img2.filter(ImageFilter.GaussianBlur(radius=5))
-        img1 = ImageEnhance.Color(img1).enhance(1.5)  # افزایش رنگ
+        img1 = ImageEnhance.Color(img1).enhance(1.5)
         img2 = ImageEnhance.Color(img2).enhance(1.5)
-        img1 = add_frame(img1)  # اضافه کردن فریم صورتی
+        img1 = add_frame(img1)
         img2 = add_frame(img2)
 
         background_image_path = download_image(
@@ -125,7 +134,7 @@ async def couple_handler(_, message):
 {c1_name} ❤️ {c2_name}
 
 📜 شعر عاشقانه:
-"{poem} """
+"{poem}"""
         await message.reply_photo(
             test_image_path,
             caption=caption,
@@ -150,4 +159,3 @@ async def couple_handler(_, message):
     finally:
         for file in [p1_path, p2_path, test_image_path, cppic_path]:
             if os.path.exists(file):
-                os.remove(file)
