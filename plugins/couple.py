@@ -159,8 +159,9 @@ async def couple_handler(_, message):
         couple = {"c1_id": c1_id, "c2_id": c2_id}
         await save_couple(cid, "", couple, img_url)
 
-    # except Exception as e:
-        # await message.reply_text(f"❌ خطایی رخ داده است: {e}")
-    # finally:
-        # for file in [p1_path, p2_path, test_image_path, cppic_path]:
-            # if os.path.exists(file):
+    except Exception as e:
+        await message.reply_text(f"❌ خطایی رخ داده است: {e}")
+    finally:
+        for file in [p1_path, p2_path, test_image_path, cppic_path]:
+            if os.path.exists(file):
+                os.remove(file)
