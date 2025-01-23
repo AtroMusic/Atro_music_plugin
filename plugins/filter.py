@@ -1,7 +1,4 @@
-import datetime
 import re
-
-from config import BANNED_USERS
 from pyrogram import filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from YukkiMusic import app
@@ -12,20 +9,10 @@ from YukkiMusic.utils.database import (
     get_filters_names,
     save_filter,
 )
-from YukkiMusic.utils.functions import (
-    check_format,
-    extract_text_and_keyb,
-    get_data_and_name,
-)
-from YukkiMusic.utils.keyboard import ikb
-
-from utils.error import capture_err
-from utils.permissions import adminsOnly, member_permissions
-
-from .notes import extract_urls
+from utils.permissions import adminsOnly
 
 # ذخیره فیلتر با دستور /filter
-@app.on_message(filters.command("filter") & ~filters.private)
+@app.on_message(filters.command("filter") & filters.group)
 @adminsOnly("can_change_info")
 async def save_filters(_, message):
     if len(message.command) < 2 or not message.reply_to_message:
@@ -60,7 +47,7 @@ async def save_filters(_, message):
     await message.reply_text(f"فیلتر **{filter_name}** ذخیره شد.")
 
 # نمایش لیست فیلترها با دستور /filters
-@app.on_message(filters.command("filters") & ~filters.private)
+@app.on_message(filters.command("filters") & filters.group)
 async def list_filters(_, message):
     filters_list = await get_filters_names(message.chat.id)
     if not filters_list:
@@ -72,7 +59,7 @@ async def list_filters(_, message):
     await message.reply_text(text)
 
 # حذف تمامی فیلترها با دستور /stopall
-@app.on_message(filters.command("stopall") & ~filters.private)
+@app.on_message(filters.command("stopall") & filters.group)
 @adminsOnly("can_change_info")
 async def remove_filters(_, message):
     filters_list = await get_filters_names(message.chat.id)
@@ -98,7 +85,7 @@ async def delete_filter_cb(_, query: CallbackQuery):
     await query.message.edit_text(f"فیلتر **{filter_name}** حذف شد.")
 
 # ارسال اطلاعات فیلتر هنگام ارسال نام
-@app.on_message(filters.text & ~filters.private)
+@app.on_message(filters.text & filters.group)
 async def send_filter(_, message):
     filter_name = message.text.strip()
     filter_data = await get_filter(message.chat.id, filter_name)
