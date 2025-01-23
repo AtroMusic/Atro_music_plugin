@@ -13,10 +13,27 @@ from YukkiMusic import app
 # ذخیره اطلاعات کاربر
 user_data = {}
 
-# لیست ایموجی‌ها
-emojis = ["✨", "🌟", "🔥", "🌈", "🎉", "💎", "⭐️", "🎵", "💖", "🌀", "❤️‍🔥"]
+# لیست ایموجی‌های زیبا
+emojis = ["✨", "🌟", "🔥", "🎉", "💎", "🎵", "❤️‍🔥", "🌈", "⭐️", "🌀"]
 
-# ایجاد قاب‌های هنری
+# فونت‌های منتخب (زیبا و قابل‌خواندن)
+approved_fonts = [
+    "slant",
+    "big",
+    "block",
+    "lean",
+    "digital",
+    "roman",
+    "standard",
+    "banner",
+    "rounded",
+    "bulbhead",
+    "dotmatrix",
+    "rectangles",
+]
+
+
+# ایجاد قاب هنری
 def create_art_frame(text):
     top_bottom = f"{choice(emojis)}" * (len(text) + 4)
     return f"{top_bottom}\n{choice(emojis)} {text} {choice(emojis)}\n{top_bottom}"
@@ -24,7 +41,7 @@ def create_art_frame(text):
 
 # ایجاد متن با فونت
 def create_figlet(text, font=None, add_emojis=False):
-    font = font or choice(pyfiglet.FigletFont.getFonts())
+    font = font or choice(approved_fonts)  # فقط از فونت‌های منتخب استفاده شود
     figlet_text = str(pyfiglet.figlet_format(text, font=font))
     if add_emojis:
         figlet_text = create_art_frame(figlet_text)
@@ -42,10 +59,9 @@ def create_figlet(text, font=None, add_emojis=False):
 
 # لیست فونت‌ها
 def generate_font_list():
-    fonts = pyfiglet.FigletFont.getFonts()
     buttons = [
         InlineKeyboardButton(font, callback_data=f"font_{font}")
-        for font in fonts[:30]  # فقط 30 فونت
+        for font in approved_fonts  # فقط فونت‌های تأییدشده
     ]
     return [buttons[i : i + 3] for i in range(0, len(buttons), 3)]
 
@@ -118,4 +134,5 @@ async def specific_font_handler(_, query: CallbackQuery):
 @app.on_callback_query(filters.regex("close_reply"))
 async def close_handler(_, query: CallbackQuery):
     await query.message.delete()
+
 
