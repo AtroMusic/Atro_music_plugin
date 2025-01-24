@@ -73,7 +73,7 @@ BIOGRAPHIES = [
     "با رفتنت، آسمان زندگی‌ام ابر شد.",
 ]
 
-@app.on_message(filters.text)  # فقط پیام‌های متنی
+@app.on_message(filters.group & filters.text)  # فیلتر پیام‌های متنی در گروه‌ها
 async def get_bio(_, message):
     if message.text.strip() in ["بیو", "بیوگرافی"]:  # بررسی دستورات فارسی
         random_bio = random.choice(BIOGRAPHIES)
