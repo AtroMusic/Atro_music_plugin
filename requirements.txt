@@ -9,4 +9,3 @@ SafoneAPI
 nekos.py
 telegraph
 uuid
-git+https://github.com/AtroMusic/Atro_music_plugin@main
