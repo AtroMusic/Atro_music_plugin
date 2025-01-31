@@ -25,7 +25,7 @@ from YukkiMusic.utils.functions import (
 )
 from YukkiMusic.utils.keyboard import ikb
 
-from utils.error import capture_err
+from YukkiMusic.utils.error import capture_err
 from utils.permissions import adminsOnly, member_permissions
 
 
